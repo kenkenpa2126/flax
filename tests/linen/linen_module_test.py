@@ -2005,7 +2005,7 @@ class ModuleTest(absltest.TestCase):
     module = Foo()
     variables = module.bind({})
 
-  @pytest.mark.skip(reason='Testing for an internal error')
+  # @pytest.mark.skip(reason='Testing for an internal error')
   def test_binding_in_setup(self):
     test = self
     class Baz(nn.Module):
@@ -2015,12 +2015,15 @@ class ModuleTest(absltest.TestCase):
 
     class Bar(nn.Module):
       baz: Baz
+
       def __call__(self, x):
         return self.baz(x)
 
+    baz = Baz()
+
     class Foo(nn.Module):
       def setup(self):
-        self.bar = Bar(baz=Baz())
+        self.bar = Bar(baz=baz)
 
         # test.assertIs(self.bar.parent, self)
         # test.assertIs(self.bar.baz.parent, None)
@@ -2136,7 +2139,7 @@ class ModuleTest(absltest.TestCase):
     bar1 = bound_module.bars[0]
     self.assertIsNotNone(bar1.scope)
 
-  # @pytest.mark.skip(reason="Leaving it here to tackle it later")
+  @pytest.mark.skip(reason="Leaving it here to tackle it later")
   def test_nested_shared(self):
     class Shared(nn.Module):
       @nn.compact

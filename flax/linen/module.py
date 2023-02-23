@@ -912,9 +912,13 @@ class Module:
   def __getattribute__(self, name):
     """Call setup() before accessing any submodule attributes."""
     # NB: all code here is very "hot" and will be run very frequently.
-    if ('_submodule_dataclass_fields' in object.__getattribute__(self, '__dict__')
+    if (object.__getattribute__(self, 'scope') is not None
+        and '_submodule_dataclass_fields' in object.__getattribute__(self, '__dict__')
         and name in object.__getattribute__(self, '_submodule_dataclass_fields')):
-      object.__getattribute__(self, '_try_setup')()
+      # object.__getattribute__(self, '_try_setup')()
+      value = object.__getattribute__(self, name)
+      object.__getattribute__(self, '_register_submodules')(name, value)
+
     # always run original python __getattribute__
     return object.__getattribute__(self, name)
 
@@ -1177,33 +1181,7 @@ class Module:
 
     module = self.__class__(**attrs)
 
-    # We need to register submodules recursively after cloning to ensure that
-    # scopes for input submodules are eagerly created, this solves problems
-    # that arise when sharing external submodules.
-    if _deep_clone is True:
-      module._recursive_register_submodules()
-
     return module
-
-  def _recursive_register_submodules(self):
-    """Recursively registers submodules in this module and its children."""
-
-    # We only register submodules that are passed from the outside.
-    # These are found in the _submodule_dataclass_fields attribute.
-    for field_name in self._submodule_dataclass_fields:
-      value = self.__dict__[field_name]
-      current_in_setup = self._state.in_setup
-      try:
-        # We are temporarily setting in_setup to True to trick
-        # _register_submodules thinking its inside setup, else it will
-        # error. Maybe we can create a new state for this?
-        self._state.in_setup = True
-        self._register_submodules(field_name, value)
-      finally:
-        self._state.in_setup = current_in_setup
-
-      value = self.__dict__[field_name]
-      _map_submodules(lambda m: m._recursive_register_submodules(), value)
 
   def variable(self, col: str, name: str,
                init_fn: Optional[Callable[..., Any]] = None,
