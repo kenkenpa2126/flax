@@ -519,6 +519,7 @@ class _ModuleInternalState:
   autoname_cursor: Dict[str, int] = dataclasses.field(default_factory=dict)
   children: Dict[str, Union[str, 'Module']] = dataclasses.field(
       default_factory=dict)
+  registered_submodules: Set[str] = dataclasses.field(default_factory=set)
 
   def reset(self) -> None:
     """Resets transient state.
@@ -914,7 +915,8 @@ class Module:
     # NB: all code here is very "hot" and will be run very frequently.
     if (object.__getattribute__(self, 'scope') is not None
         and '_submodule_dataclass_fields' in object.__getattribute__(self, '__dict__')
-        and name in object.__getattribute__(self, '_submodule_dataclass_fields')):
+        and name in object.__getattribute__(self, '_submodule_dataclass_fields')
+        and name not in self._state.registered_submodules):
       # object.__getattribute__(self, '_try_setup')()
       value = object.__getattribute__(self, name)
       object.__getattribute__(self, '_register_submodules')(name, value)
@@ -1070,6 +1072,7 @@ class Module:
     object.__setattr__(self, name, val)
     for x in queue:
       x.__post_init__()
+    self._state.registered_submodules.add(name)
 
   def _try_setup(self, shallow: bool = False) -> None:
     """Tries to setup module if scope is available and setup has not been called yet."""
